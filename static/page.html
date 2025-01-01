@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Chatbot</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .chat-container {
+            width: 95%;
+            max-width: 1400px;
+            height: 80vh;
+            display: flex;
+            gap: 20px;
+        }
+        .chat-section {
+            flex: 2;
+            max-width: 700px;
+            min-width: 400px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+        .documents-section {
+            flex: 2;
+            height: 100%;
+            min-width: 500px;
+            max-width: 600px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 12px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .documents {
+            font-size: 0.5em;
+            margin-top: 10px;
+            line-height: 1.8;
+        }
+
+        .documents div {
+            margin-top: 20px;
+        }
+
+        .documents div:first-child {
+            margin-top: 0;
+        }
+
+        .documents strong {
+            font-size: 1.2em;
+            display: block;
+            margin: 25px 0 8px 0;
+            line-height: 1.4;
+        }
+
+        .documents strong:first-child {
+            margin-top: 0;
+        }
+        .chat-box {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            word-wrap: break-word;
+        }
+        .chat-box p {
+            margin: 12px 0;
+            padding: 5px 0;
+            max-width: 100%;
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+        .chat-box strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .input-box {
+            height: 36px;
+            min-height: 36px;
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .input-box input {
+            flex: 1;
+            height: 100%;
+            box-sizing: border-box;
+        }
+        
+        .input-box button {
+            height: 100%;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            margin: 0 0 8px 0;
+            padding: 0;
+            font-size: 1.4em;
+        }
+
+        /* 로딩 스피너 컨테이너 */
+        .spinner-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 30px;
+            margin: 0 0 10px 0;
+        }
+
+        /* 로딩 스피너 스타일 */
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 채팅 박스 여백 조정 */
+        .chat-box {
+            margin-bottom: 0;  /* 스피너 컨테이너와의 간격 조정 */
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-section">
+            <h2>Legal Chatbot</h2>
+            <div class="chat-box" id="chat-box">
+                <!-- 채팅 내용이 여기에 표시됩니다 -->
+            </div>
+            <div class="spinner-container" id="spinner-container" style="display: none;">
+                <div class="loading-spinner"></div>
+            </div>
+            <div class="input-box">
+                <input type="text" id="user-input" placeholder="질문을 입력하세요...">
+                <button onclick="sendQuestion()" id="send-button">전송</button>
+            </div>
+        </div>
+        <div class="documents-section">
+            <h2>관련 법령</h2>
+            <div id="documents" class="documents">
+                <!-- Documents will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function sendQuestion() {
+            const userInput = document.getElementById('user-input').value;
+            const chatBox = document.getElementById('chat-box');
+            const documentsDiv = document.getElementById('documents');
+            const sendButton = document.getElementById('send-button');
+            const inputField = document.getElementById('user-input');
+            const spinnerContainer = document.getElementById('spinner-container');
+
+            if (userInput.trim() === '') return;
+
+            // 입력창 비우기 및 버튼 비활성화
+            inputField.value = '';
+            sendButton.disabled = true;
+            inputField.disabled = true;
+
+            // 사용자 질문 표시
+            chatBox.innerHTML += `<p><strong>사용자:</strong> ${userInput}</p>`;
+            
+            // 스피너 표시
+            spinnerContainer.style.display = 'flex';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch('/chatbot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question_content: userInput })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    chatBox.innerHTML += `<p><strong>챗봇:</strong> ${data.answer}</p>`;
+                    
+                    documentsDiv.innerHTML = data.documents.map((doc, index) => 
+                        `<div><strong>${doc.act_name}</strong>${doc.act_content}</div>`
+                    ).join('');
+                } else {
+                    chatBox.innerHTML += `<p><strong>에러:</strong> ${data.detail}</p>`;
+                }
+            } catch (error) {
+                chatBox.innerHTML += `<p><strong>에러:</strong> 서버 연결에 실패했습니다.</p>`;
+            } finally {
+                // 스피너 숨기기
+                spinnerContainer.style.display = 'none';
+                // 입력창과 버튼 다시 활성화
+                sendButton.disabled = false;
+                inputField.disabled = false;
+                inputField.focus();
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+
+        // 엔터 키 이벤트 처리
+        document.getElementById('user-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();  // 기본 엔터 동작 방지
+                sendQuestion();
+            }
+        });
+    </script>
+</body>
+</html>
